@@ -3,12 +3,13 @@ use rustfft::{FftPlanner, num_complex::Complex};
 use std::collections::HashMap;
 use std::env;
 
-// Custom Hann window function
+// Custom Hann window function, for filtering out noise
 fn hann(i: usize, size: usize) -> f32 {
     let pi = std::f32::consts::PI;
     (pi * i as f32 / (size as f32)).sin().powi(2)
 }
 
+// Convert frequency to MIDI note number (A4 is 69)
 fn freq_to_midi_note(freq: f32) -> Option<u8> {
     if freq <= 0.0 {
         return None;
@@ -21,6 +22,7 @@ fn freq_to_midi_note(freq: f32) -> Option<u8> {
     }
 }
 
+// Convert MIDI note number to note name (69 -> A4, 60 -> C4, etc.)
 fn midi_note_to_name(note: u8) -> String {
     let note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     let octave = (note / 12).saturating_sub(1);
@@ -36,20 +38,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let filename = &args[1];
 
+    // Open the WAV file
     let mut reader = hound::WavReader::open(filename)?;
     let spec = reader.spec();
     let sample_rate = spec.sample_rate as f32;
+    // Read samples into a vector
     let samples: Vec<f32> = reader
         .samples::<i16>()
         .filter_map(Result::ok)
         .map(|s| s as f32 / i16::MAX as f32)
         .collect();
 
+    // Get wav duration in seconds
     let duration_seconds = samples.len() as f32 / sample_rate;
     println!("File: {}", filename);
     println!("Sample rate: {} Hz", sample_rate);
     println!("Duration: {:.2} seconds", duration_seconds);
 
+    // FFT parameters
     let fft_size = 4096;
     let hop_size = fft_size / 2;
 
@@ -63,6 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Processing...");
 
+    // Sliding window FFT
     for start in (0..samples.len().saturating_sub(fft_size)).step_by(hop_size) {
         for i in 0..fft_size {
             buffer[i].re = samples[start + i] * window[i];
