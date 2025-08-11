@@ -1,0 +1,9 @@
+[package]
+name = "wav_note_detector"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hound = "3.4"
+rustfft = "6.4"
+fundsp = "0.10"  # for window functions
